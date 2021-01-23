@@ -54,7 +54,7 @@ func newNetworkDef() libvirtxml.Network {
 		  <forward mode='nat'>
 		    <nat>
 		      <port start='1024' end='65535'/>
-			</nat>
+		    </nat>
 		  </forward>
 		</network>`
 	if d, err := newDefNetworkFromXML(defNetworkXML); err != nil {
