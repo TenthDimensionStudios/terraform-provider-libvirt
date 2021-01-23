@@ -7,3 +7,5 @@
 *.cov
 terraform-provider-libvirt
 .terraform
+.env
+.vscode/launch.json
