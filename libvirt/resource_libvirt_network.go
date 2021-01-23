@@ -453,6 +453,9 @@ func resourceLibvirtNetworkCreate(d *schema.ResourceData, meta interface{}) erro
 		if err != nil {
 			return fmt.Errorf("Could not set forwarding interfaces from interfaces '%s'", err)
 		}
+		if len(ifaces) > 0 && networkDef.Bridge.Name != "" {
+			return fmt.Errorf("'bridge' is incompatible with 'interfaces' '%s'", err)
+		}
 		networkDef.Forward.Interfaces = ifaces
 
 		dnsEnabled, err := getDNSEnableFromResource(d)
@@ -484,8 +487,10 @@ func resourceLibvirtNetworkCreate(d *schema.ResourceData, meta interface{}) erro
 		networkDef.DNS = &dns
 
 	} else if networkDef.Forward.Mode == netModeBridge {
-		if networkDef.Bridge.Name == "" && len(networkDef.Forward.Interfaces) == 0 {
-			return fmt.Errorf("'bridge' must be provided when using the bridged network mode or forward interfaces")
+		if networkDef.Bridge.Name != "" && len(networkDef.Forward.Interfaces) > 0 {
+			return fmt.Errorf("'bridge' and 'interfaces' cannot be provided together when using the bridged network mode")
+		} else if networkDef.Bridge.Name == "" && len(networkDef.Forward.Interfaces) == 0 {
+			return fmt.Errorf("'bridge' or 'interfaces' must be provided when using the bridged network mode")
 		}
 		networkDef.Bridge.STP = ""
 
