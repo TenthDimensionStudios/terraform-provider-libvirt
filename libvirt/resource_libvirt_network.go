@@ -395,7 +395,7 @@ func resourceLibvirtNetworkUpdate(d *schema.ResourceData, meta interface{}) erro
 		err = network.Update(libvirt.NETWORK_UPDATE_COMMAND_MODIFY, libvirt.NETWORK_SECTION_FORWARD_INTERFACE, -1,
 			data, libvirt.NETWORK_UPDATE_AFFECT_LIVE|libvirt.NETWORK_UPDATE_AFFECT_CONFIG)
 		if err != nil {
-			return fmt.Errorf("Error when updating bridge in %s: %s", networkName, err)
+			return fmt.Errorf("Error when updating interfaces in %s: %s", networkName, err)
 		}
 
 		d.SetPartial("interfaces")
