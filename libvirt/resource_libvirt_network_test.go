@@ -669,3 +669,31 @@ func TestAccLibvirtNetwork_DnsmasqOptions(t *testing.T) {
 		},
 	})
 }
+
+func TestAccLibvirtNetwork_ForwardInterfaces(t *testing.T) {
+	skipIfPrivilegedDisabled(t)
+
+	var network libvirt.Network
+	randomNetworkResource := acctest.RandStringFromCharSet(10, acctest.CharSetAlpha)
+	randomNetworkName := acctest.RandStringFromCharSet(10, acctest.CharSetAlpha)
+	resource.Test(t, resource.TestCase{
+		PreCheck:     func() { testAccPreCheck(t) },
+		Providers:    testAccProviders,
+		CheckDestroy: testAccCheckLibvirtNetworkDestroy,
+		Steps: []resource.TestStep{
+			{
+				Config: fmt.Sprintf(`
+				resource "libvirt_network" "%s" {
+					name      = "%s"
+					mode      = "bridge"
+					interfaces = ["br0"]
+				}`, randomNetworkResource, randomNetworkName),
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckNetworkExists("libvirt_network."+randomNetworkResource, &network),
+					resource.TestCheckResourceAttr("libvirt_network."+randomNetworkResource, "interfaces.0", "br0"),
+					resource.TestCheckResourceAttr("libvirt_network."+randomNetworkResource, "mode", "bridge"),
+				),
+			},
+		},
+	})
+}

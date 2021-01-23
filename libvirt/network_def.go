@@ -7,7 +7,7 @@ import (
 	"net"
 
 	libvirt "github.com/libvirt/libvirt-go"
-	"github.com/libvirt/libvirt-go-xml"
+	libvirtxml "github.com/libvirt/libvirt-go-xml"
 )
 
 // HasDHCP checks if the network has a DHCP server managed by libvirt
@@ -54,7 +54,7 @@ func newNetworkDef() libvirtxml.Network {
 		  <forward mode='nat'>
 		    <nat>
 		      <port start='1024' end='65535'/>
-		    </nat>
+			</nat>
 		  </forward>
 		</network>`
 	if d, err := newDefNetworkFromXML(defNetworkXML); err != nil {

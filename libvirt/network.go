@@ -43,6 +43,25 @@ func getNetModeFromResource(d *schema.ResourceData) string {
 	return strings.ToLower(d.Get("mode").(string))
 }
 
+// getInterfacesFromResource returns the forwarding interfaces
+func getInterfacesFromResource(d *schema.ResourceData) ([]libvirtxml.NetworkForwardInterface, error) {
+	interfaces, ok := d.GetOk("interfaces")
+	if !ok {
+		return []libvirtxml.NetworkForwardInterface{}, nil
+	}
+
+	ifacesPtrsLst := []libvirtxml.NetworkForwardInterface{}
+	for _, device := range interfaces.([]interface{}) {
+		iface := &libvirtxml.NetworkForwardInterface{
+			Dev: device.(string),
+		}
+
+		ifacesPtrsLst = append(ifacesPtrsLst, *iface)
+	}
+
+	return ifacesPtrsLst, nil
+}
+
 // getIPsFromResource gets the IPs configurations from the resource definition
 func getIPsFromResource(d *schema.ResourceData) ([]libvirtxml.NetworkIP, error) {
 	addresses, ok := d.GetOk("addresses")

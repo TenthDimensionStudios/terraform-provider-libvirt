@@ -72,6 +72,14 @@ func resourceLibvirtNetwork() *schema.Resource {
 				Computed: true,
 				ForceNew: false,
 			},
+			"interfaces": {
+				Type:     schema.TypeList,
+				Optional: true,
+				ForceNew: true,
+				Elem: &schema.Schema{
+					Type: schema.TypeString,
+				},
+			},
 			"mtu": {
 				Type:     schema.TypeInt,
 				Optional: true,
@@ -375,6 +383,24 @@ func resourceLibvirtNetworkUpdate(d *schema.ResourceData, meta interface{}) erro
 		d.SetPartial("bridge")
 	}
 
+	if d.HasChange("interfaces") {
+		ifaces, _ := getInterfacesFromResource(d)
+
+		data, err := xmlMarshallIndented(ifaces)
+		if err != nil {
+			return fmt.Errorf("Error serializing update for interfaces %s: %s", networkName, err)
+		}
+
+		log.Printf("[DEBUG] Updating interfaces for libvirt network '%s'", networkName)
+		err = network.Update(libvirt.NETWORK_UPDATE_COMMAND_MODIFY, libvirt.NETWORK_SECTION_FORWARD_INTERFACE, -1,
+			data, libvirt.NETWORK_UPDATE_AFFECT_LIVE|libvirt.NETWORK_UPDATE_AFFECT_CONFIG)
+		if err != nil {
+			return fmt.Errorf("Error when updating bridge in %s: %s", networkName, err)
+		}
+
+		d.SetPartial("interfaces")
+	}
+
 	d.Partial(false)
 	return nil
 }
@@ -400,6 +426,12 @@ func resourceLibvirtNetworkCreate(d *schema.ResourceData, meta interface{}) erro
 	networkDef.Forward = &libvirtxml.NetworkForward{
 		Mode: getNetModeFromResource(d),
 	}
+
+	ifaces, err := getInterfacesFromResource(d)
+	if err == nil {
+		networkDef.Forward.Interfaces = ifaces
+	}
+
 	if networkDef.Forward.Mode == netModeIsolated || networkDef.Forward.Mode == netModeNat || networkDef.Forward.Mode == netModeRoute {
 
 		if networkDef.Forward.Mode == netModeIsolated {
@@ -416,6 +448,12 @@ func resourceLibvirtNetworkCreate(d *schema.ResourceData, meta interface{}) erro
 			return fmt.Errorf("Could not set DHCP from adresses '%s'", err)
 		}
 		networkDef.IPs = ips
+
+		ifaces, err := getInterfacesFromResource(d)
+		if err != nil {
+			return fmt.Errorf("Could not set forwarding interfaces from interfaces '%s'", err)
+		}
+		networkDef.Forward.Interfaces = ifaces
 
 		dnsEnabled, err := getDNSEnableFromResource(d)
 		if err != nil {
@@ -446,10 +484,11 @@ func resourceLibvirtNetworkCreate(d *schema.ResourceData, meta interface{}) erro
 		networkDef.DNS = &dns
 
 	} else if networkDef.Forward.Mode == netModeBridge {
-		if networkDef.Bridge.Name == "" {
-			return fmt.Errorf("'bridge' must be provided when using the bridged network mode")
+		if networkDef.Bridge.Name == "" && len(networkDef.Forward.Interfaces) == 0 {
+			return fmt.Errorf("'bridge' must be provided when using the bridged network mode or forward interfaces")
 		}
 		networkDef.Bridge.STP = ""
+
 	} else {
 		return fmt.Errorf("unsupported network mode '%s'", networkDef.Forward.Mode)
 	}
@@ -573,7 +612,10 @@ func resourceLibvirtNetworkRead(d *schema.ResourceData, meta interface{}) error 
 	}
 
 	d.Set("name", networkDef.Name)
-	d.Set("bridge", networkDef.Bridge.Name)
+
+	if networkDef.Bridge != nil {
+		d.Set("bridge", networkDef.Bridge.Name)
+	}
 
 	if networkDef.MTU != nil {
 		d.Set("mtu", networkDef.MTU.Size)
@@ -581,6 +623,17 @@ func resourceLibvirtNetworkRead(d *schema.ResourceData, meta interface{}) error 
 
 	if networkDef.Forward != nil {
 		d.Set("mode", networkDef.Forward.Mode)
+
+		if networkDef.Forward.Interfaces != nil {
+			ifaces := []string{}
+			for _, ifce := range networkDef.Forward.Interfaces {
+				ifaces = append(ifaces, ifce.Dev)
+			}
+
+			if len(ifaces) > 0 {
+				d.Set("interfaces", ifaces)
+			}
+		}
 	}
 
 	// Domain as won't be present for bridged networks
